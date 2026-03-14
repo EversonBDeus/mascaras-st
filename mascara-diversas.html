@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="pt-br" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' data: https:;">
+    
+    <title>Gerador de Máscaras Pro</title>
+
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%236366f1%22/><text x=%2250%%22 y=%2250%%22 dominant-baseline=%22central%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2260%22 font-family=%22sans-serif%22 font-weight=%22bold%22>M</text></svg>">
+
+    <style>
+        :root {
+            --primary: #6366f1; /* Indigo 500 */
+            --secondary: #10b981; /* Emerald 500 */
+            --danger: #ef4444; /* Red 500 */
+            --dark-bg: #0f172a; /* Slate 900 */
+            --card-bg: #1e293b; /* Slate 800 */
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --font-stack: 'Poppins', sans-serif;
+        }
+
+        /* Light Mode Variables */
+        html:not(.dark) {
+            --dark-bg: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+        html:not(.dark) .input-group__field {
+            background-color: #f8fafc;
+            border-color: #cbd5e1;
+            color: #334155;
+        }
+        html:not(.dark) .history-item {
+            background-color: #f1f5f9;
+            color: #334155;
+        }
+
+        /* Skeleton Loading */
+        .skeleton {
+            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--dark-bg);
+            color: var(--text-main);
+            overflow-x: hidden;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Scrollbar Personalizada */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--dark-bg); }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+        /* Vanta Background Container */
+        #vanta-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            opacity: 0.2;
+            pointer-events: none;
+        }
+
+        /* CSS BEM - Input Group */
+        .input-group {
+            position: relative;
+            margin-bottom: 1.5rem; /* Aumentado para caber histórico */
+        }
+        
+        .input-group__icon {
+            position: absolute;
+            left: 1rem;
+            top: 1.2rem; /* Ajustado */
+            transform: translateY(-50%);
+            transition: color 0.3s;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .input-group__field {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            color: white;
+            transition: all 0.3s ease;
+            outline: none;
+            height: 46px;
+        }
+
+        .input-group__field:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        }
+
+        /* Histórico Dropdown */
+        .history-container {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: var(--card-bg);
+            border: 1px solid #334155;
+            border-top: none;
+            border-bottom-left-radius: 0.5rem;
+            border-bottom-right-radius: 0.5rem;
+            z-index: 50;
+            display: none;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        /* Mostra apenas se tiver itens e o input estiver focado ou mouse sobre */
+        .input-group:focus-within .history-container,
+        .history-container:hover {
+            display: block;
+        }
+
+        .history-item {
+            padding: 8px 10px;
+            font-size: 0.8rem;
+            color: #cbd5e1;
+            border-bottom: 1px solid #334155;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .history-item:hover {
+            background-color: #334155;
+        }
+        .history-text {
+            flex-grow: 1;
+        }
+        .history-delete {
+            color: #ef4444;
+            padding: 4px 6px;
+            border-radius: 4px;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+        .history-delete:hover {
+            background-color: rgba(239, 68, 68, 0.2);
+        }
+
+        /* Campo Ameaça Compacto */
+        .input-compact {
+            height: 32px !important;
+            font-size: 0.8rem !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        .icon-compact {
+            top: 1rem !important;
+            font-size: 0.8rem !important;
+        }
+
+        /* Cores Dinâmicas ao Focar */
+        .input-group:focus-within .fa-id-card { color: #3b82f6; } 
+        .input-group:focus-within .fa-phone { color: #10b981; } 
+        .input-group:focus-within .fa-hashtag { color: #a855f7; } 
+        .input-group:focus-within .fa-exclamation-triangle { color: #ef4444; } 
+
+        /* Container Queries para Responsividade do Card */
+        .mask-card-container {
+            container-type: inline-size;
+        }
+        
+        /* Ajuste textarea */
+        textarea.input-group__field {
+            height: auto !important;
+        }
+    </style>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+    <script src="https://unpkg.com/nprogress@0.2.0/nprogress.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/nprogress@0.2.0/nprogress.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366f1',
+                        dark: '#0f172a',
+                        card: '#1e293b'
+                    },
+                    fontFamily: {
+                        sans: ['Poppins', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="antialiased min-h-screen flex flex-col">
+
+    <div id="vanta-bg"></div>
+
+    <header class="sticky top-0 z-50 backdrop-blur-md bg-dark/80 border-b border-gray-700 shadow-lg transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-4">
+                    <div class="text-2xl font-bold text-primary animate__animated animate__fadeInLeft">
+                        <i class="fa-solid fa-mask"></i> MaskPro
+                    </div>
+                    <nav class="hidden md:block text-sm text-gray-400">
+                        <ol class="flex gap-2">
+                            <li>Home</li>
+                            <li>/</li>
+                            <li class="text-white">Dashboard</li>
+                        </ol>
+                    </nav>
+                </div>
+
+                <div class="flex items-center gap-4">
+                    <div class="relative hidden sm:block">
+                        <input type="text" id="global-search" placeholder="Buscar máscara..." 
+                               class="bg-gray-800 border-none rounded-full py-1.5 px-4 text-sm focus:ring-2 focus:ring-primary w-64 text-white">
+                        <i class="fa-solid fa-search absolute right-3 top-2 text-gray-500"></i>
+                    </div>
+                    
+                    <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-700 text-yellow-400 transition-all" data-tippy-content="Modo Noturno/Claro">
+                        <i class="fa-solid fa-sun"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        
+        <section class="mb-10 text-center lg:text-left flex flex-col lg:flex-row items-center justify-between gap-6">
+            <div>
+                <h1 class="text-4xl md:text-5xl font-bold mb-2">
+                    <span class="splitting-target" data-splitting>Agilize seu</span> 
+                    <span class="text-primary typed-element"></span>
+                </h1>
+                <p class="text-gray-400 mt-2 max-w-2xl">
+                    Preenchimento inteligente e histórico automático.
+                </p>
+            </div>
+            
+            <div class="bg-card p-4 rounded-xl shadow-lg border border-gray-700 w-full lg:w-1/3">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-sm font-semibold text-gray-300">Uso Hoje</h3>
+                    <span class="text-xs bg-green-900 text-green-300 px-2 py-0.5 rounded">Ativo</span>
+                </div>
+                <div id="chart-sparkline" style="min-height: 80px;"></div>
+            </div>
+        </section>
+
+        <div id="mask-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+            <div class="mask-card-container scroll-reveal" data-id="bot-fibra">
+                <div class="bg-card rounded-xl border border-gray-700 shadow-xl overflow-hidden hover:border-primary transition duration-300 group">
+                    <div class="p-4 bg-gray-800/50 border-b border-gray-700 flex justify-between items-center">
+                        <h2 class="font-bold text-lg"><i class="fa-solid fa-robot text-blue-400 mr-2"></i> Teste BOT Fibra</h2>
+                        <i class="fa-solid fa-grip-lines text-gray-600 cursor-grab handle"></i>
+                    </div>
+                    
+                    <div class="p-5 space-y-1">
+                        <div class="input-group">
+                            <i class="fa-solid fa-id-card input-group__icon text-gray-500"></i>
+                            <input type="text" class="input-group__field cleave-cpf" data-key="bot_cpf" placeholder="CPF do Cliente">
+                        </div>
+
+                        <div class="input-group">
+                            <i class="fa-solid fa-phone input-group__icon text-gray-500"></i>
+                            <input type="text" class="input-group__field cleave-phone" data-key="bot_tel" placeholder="Telefone Testado">
+                        </div>
+
+                        <div class="input-group">
+                            <i class="fa-solid fa-hashtag input-group__icon text-gray-500"></i>
+                            <input type="text" class="input-group__field cleave-number" data-key="bot_proto" placeholder="Protocolo">
+                        </div>
+
+                        <div class="input-group">
+                            <i class="fa-solid fa-exclamation-circle input-group__icon text-gray-500"></i>
+                            <input type="text" class="input-group__field has-history" data-key="bot_falha" placeholder="Descreva a Falha">
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-gray-800/50 border-t border-gray-700">
+                        <button class="btn-copy w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center gap-2" 
+                                onclick="copyMask(this)">
+                            <i class="fa-regular fa-copy"></i> Copiar Máscara
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mask-card-container scroll-reveal" data-id="deslogue">
+                <div class="bg-card rounded-xl border border-gray-700 shadow-xl overflow-hidden hover:border-purple-500 transition duration-300 group">
+                    <div class="p-4 bg-gray-800/50 border-b border-gray-700 flex justify-between items-center">
+                        <h2 class="font-bold text-lg"><i class="fa-solid fa-power-off text-purple-400 mr-2"></i> Máscara de Deslogue</h2>
+                        <i class="fa-solid fa-grip-lines text-gray-600 cursor-grab handle"></i>
+                    </div>
+                    
+                    <div class="p-5 space-y-1">
+                        <div class="input-group">
+                            <i class="fa-solid fa-user input-group__icon text-gray-500"></i>
+                            <input type="text" class="input-group__field save-local has-history" data-key="ds_nome" placeholder="Colaborador(a)">
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="input-group">
+                                <i class="fa-solid fa-hashtag input-group__icon text-gray-500 text-xs"></i>
+                                <input type="text" class="input-group__field cleave-number save-local has-history" data-key="ds_bc" placeholder="BC/Matrícula">
+                            </div>
+                            <div class="input-group">
+                                <i class="fa-brands fa-whatsapp input-group__icon text-gray-500 text-xs"></i>
+                                <input type="text" class="input-group__field cleave-phone save-local has-history" data-key="ds_wpp" placeholder="Whatsapp">
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <i class="fa-regular fa-calendar-alt input-group__icon text-gray-500"></i>
+                            <input type="text" class="input-group__field flatpickr-range" id="ds_data_auto" placeholder="Data (Automático)">
+                        </div>
+
+                        <div class="input-group">
+                            <i class="fa-solid fa-triangle-exclamation input-group__icon text-gray-500"></i>
+                            <input type="text" class="input-group__field has-history" id="ds_falha_no_persist" placeholder="Descreva a Falha">
+                        </div>
+                          
+                         <div class="grid grid-cols-2 gap-2">
+                            <div class="input-group">
+                                <i class="fa-solid fa-clock input-group__icon text-gray-500 text-xs"></i>
+                                <input type="text" class="input-group__field save-local has-history" data-key="ds_escala" placeholder="Escala">
+                            </div>
+                            <div class="input-group">
+                                <i class="fa-solid fa-tachometer-alt input-group__icon text-gray-500 text-xs"></i>
+                                <input type="text" class="input-group__field save-local has-history" data-key="ds_prov" placeholder="Provedor/Vel">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-gray-800/50 border-t border-gray-700">
+                        <button class="btn-copy w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2 px-4 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                                onclick="copyMask(this)">
+                            <i class="fa-regular fa-copy"></i> Copiar Máscara
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mask-card-container scroll-reveal" data-id="supervisao">
+                <div class="bg-card rounded-xl border border-gray-700 shadow-xl overflow-hidden hover:border-orange-500 transition duration-300">
+                    <div class="p-4 bg-gray-800/50 border-b border-gray-700">
+                        <h2 class="font-bold text-lg"><i class="fa-solid fa-user-tie text-orange-500 mr-2"></i> Exige falar com Supervisão</h2>
+                    </div>
+                    
+                    <div class="p-5 space-y-1">
+                        <div class="input-group">
+                            <i class="fa-solid fa-user input-group__icon text-gray-500"></i>
+                            <input type="text" class="input-group__field" data-key="sup_solicitante" placeholder="Solicitante">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                             <div class="input-group">
+                                <i class="fa-solid fa-id-card input-group__icon text-gray-500"></i>
+                                <input type="text" class="input-group__field cleave-cpf" data-key="sup_cpf" placeholder="CPF">
+                            </div>
+                            <div class="input-group">
+                                <i class="fa-solid fa-phone input-group__icon text-gray-500"></i>
+                                <input type="text" class="input-group__field cleave-phone" data-key="sup_tel" placeholder="Telefone">
+                            </div>
+                        </div>
+                        
+                        <div class="input-group">
+                            <i class="fa-solid fa-map-marker-alt input-group__icon text-gray-500"></i>
+                            <input type="text" class="input-group__field save-local has-history" data-key="sup_area" placeholder="Área de Atendimento">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                             <div class="input-group">
+                                <i class="fa-solid fa-bomb input-group__icon icon-compact text-gray-500"></i>
+                                <input type="text" class="input-group__field input-compact has-history save-local" data-key="sup_ameaca" placeholder="Ameaça?">
+                            </div>
+                             <div class="input-group">
+                                <i class="fa-solid fa-hashtag input-group__icon text-gray-500"></i>
+                                <input type="text" class="input-group__field cleave-number" data-key="sup_proto" placeholder="Protocolo STU">
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <i class="fa-solid fa-comment-dots input-group__icon text-gray-500"></i>
+                            <input type="text" class="input-group__field" data-key="sup_queixa" placeholder="Queixa (Reclama que...)">
+                        </div>
+                        <div class="input-group">
+                            <i class="fa-solid fa-ghost input-group__icon text-gray-500"></i>
+                            <input type="text" class="input-group__field" data-key="sup_ba" placeholder="BA Vulto (Se houver)">
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-gray-800/50 border-t border-gray-700">
+                        <button class="btn-copy w-full bg-orange-600 hover:bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                                onclick="copyMask(this)">
+                            <i class="fa-regular fa-copy"></i> Copiar Supervisão
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mask-card-container scroll-reveal col-span-1 md:col-span-2 xl:col-span-3" data-id="vehtor">
+                <div class="bg-card rounded-xl border border-gray-700 shadow-xl overflow-hidden hover:border-red-500 transition duration-300">
+                    <div class="p-4 bg-gray-800/50 border-b border-gray-700">
+                        <h2 class="font-bold text-lg"><i class="fa-solid fa-fire text-red-500 mr-2"></i> Prioridade Avançado (Vehtor)</h2>
+                    </div>
+                    
+                    <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <div class="input-group">
+                                <i class="fa-solid fa-hashtag input-group__icon text-gray-500"></i>
+                                <input type="text" class="input-group__field cleave-number" id="vh_proto" placeholder="Protocolo Vehtor">
+                            </div>
+                            
+                            <div class="input-group">
+                                <i class="fa-solid fa-box input-group__icon text-gray-500"></i>
+                                <input type="text" class="input-group__field save-local has-history" id="vh_prod" placeholder="Produto (BANDA LARGA)">
+                            </div>
+                            
+                            <div class="input-group">
+                                <i class="fa-solid fa-user input-group__icon text-gray-500"></i>
+                                <input type="text" class="input-group__field" id="vh_nome" placeholder="Nome do Cliente">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="input-group">
+                                    <i class="fa-solid fa-id-card input-group__icon text-gray-500"></i>
+                                    <input type="text" class="input-group__field cleave-cpf" id="vh_cpf" placeholder="CPF">
+                                </div>
+                                <div class="input-group">
+                                    <i class="fa-solid fa-phone input-group__icon text-gray-500"></i>
+                                    <input type="text" class="input-group__field cleave-phone" id="vh_contato" placeholder="Contato">
+                                </div>
+                            </div>
+                             <div class="input-group">
+                                <i class="fa-solid fa-hashtag input-group__icon text-gray-500"></i>
+                                <input type="text" class="input-group__field cleave-number save-local has-history" id="vh_bc" placeholder="BC">
+                            </div>
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="input-group">
+                                <i class="fa-regular fa-calendar input-group__icon text-gray-500"></i>
+                                <input type="text" class="input-group__field flatpickr-single" id="vh_data" placeholder="Data (Hoje)">
+                            </div>
+                            <div class="input-group h-40">
+                                <textarea class="input-group__field h-full resize-none pt-3" id="vh_motivo" placeholder="Motivo da prioridade..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-gray-800/50 border-t border-gray-700">
+                        <button class="btn-copy w-full bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-4 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                                onclick="copyMask(this)">
+                            <i class="fa-regular fa-copy"></i> Copiar Prioridade
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <button id="scrollToTop" class="fixed bottom-8 right-8 bg-primary hover:bg-indigo-600 text-white p-4 rounded-full shadow-lg transform translate-y-20 transition-all duration-300 z-50">
+            <i class="fa-solid fa-arrow-up"></i>
+        </button>
+    </main>
+
+    <footer class="border-t border-gray-800 bg-dark py-6 mt-8">
+        <div class="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
+            <p>&copy; 2026 TechSupport Tools. Dados locais.</p>
+        </div>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cleave.js/1.6.0/cleave.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cleave.js/1.6.0/addons/cleave-phone.br.js"></script>
+    <script src="https://unpkg.com/scrollreveal"></script>
+    <script src="https://unpkg.com/typed.js@2.0.16/dist/typed.umd.js"></script>
+    <script src="https://unpkg.com/splitting/dist/splitting.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.waves.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <script>
+        // ==========================================
+        // 1. INICIALIZAÇÃO E UI
+        // ==========================================
+        $(document).ready(function() {
+            NProgress.start();
+
+            // Vanta.js
+            try {
+                VANTA.WAVES({
+                    el: "#vanta-bg",
+                    mouseControls: true, touchControls: true, gyroControls: false,
+                    minHeight: 200.00, minWidth: 200.00, scale: 1.00, scaleMobile: 1.00,
+                    color: 0x0f172a, shininess: 10.00, waveHeight: 10.00, waveSpeed: 0.50, zoom: 0.8
+                });
+            } catch (e) { console.log("WebGL error"); }
+
+            // Typed.js
+            new Typed('.typed-element', {
+                strings: ['Deslogue', 'Prioridade', 'Protocolos', 'Supervisão'],
+                typeSpeed: 50, backSpeed: 30, loop: true, backDelay: 2000
+            });
+
+            Splitting();
+            ScrollReveal().reveal('.scroll-reveal', { delay: 200, distance: '20px', origin: 'bottom', interval: 100 });
+            tippy('[data-tippy-content]', { theme: 'translucent', animation: 'scale' });
+
+            // Chart
+            const options = {
+                series: [{ data: [12, 14, 25, 18, 29, 35, 42] }],
+                chart: { type: 'area', height: 80, sparkline: { enabled: true } },
+                stroke: { curve: 'smooth', width: 2 },
+                fill: { opacity: 0.3 },
+                colors: ['#10b981'],
+                tooltip: { fixed: { enabled: false }, x: { show: false }, marker: { show: false } }
+            };
+            new ApexCharts(document.querySelector("#chart-sparkline"), options).render();
+
+            // Sortable
+            new Sortable(document.getElementById('mask-grid'), { animation: 150, handle: '.handle', ghostClass: 'opacity-50' });
+
+            // Theme Toggle
+            $('#theme-toggle').click(function() {
+                $('html').toggleClass('dark');
+                $(this).html($('html').hasClass('dark') ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>');
+            });
+
+            // Buscador Real
+            $('#global-search').on('keyup', function() {
+                var val = $(this).val().toLowerCase();
+                $('.mask-card-container').each(function() {
+                    var text = $(this).text().toLowerCase();
+                    $(this).toggle(text.indexOf(val) > -1);
+                });
+            });
+
+            // Seed Inicial
+            let existingThreats = JSON.parse(localStorage.getItem('hist_sup_ameaca') || '[]');
+            if (!existingThreats.includes("Cliente ameaça cancelar")) {
+                existingThreats.unshift("Cliente ameaça cancelar");
+                localStorage.setItem('hist_sup_ameaca', JSON.stringify(existingThreats));
+            }
+
+            initCleave();
+            initDatePickers();
+            setupHistory();
+            loadSavedData(); // Carrega os dados persistentes nos inputs
+            
+            NProgress.done();
+        });
+
+        // ==========================================
+        // 2. FUNÇÕES DE INPUT (CLEAVE & DATE)
+        // ==========================================
+        function initCleave() {
+            $('.cleave-cpf').toArray().forEach(field => new Cleave(field, { blocks: [3, 3, 3, 2], delimiters: ['.', '.', '-'], numericOnly: true }));
+            $('.cleave-phone').toArray().forEach(field => new Cleave(field, { phone: true, phoneRegionCode: 'BR' }));
+            $('.cleave-number').toArray().forEach(field => new Cleave(field, { numeral: true, numeralPositiveOnly: true, numeralDecimalScale: 0, numeralThousandsGroupStyle: 'none' }));
+        }
+
+        function initDatePickers() {
+            flatpickr(".flatpickr-range", { mode: "range", dateFormat: "d/m/Y", defaultDate: [new Date(), new Date()] });
+            flatpickr(".flatpickr-single", { dateFormat: "d/m/Y", defaultDate: new Date() });
+        }
+
+        // ==========================================
+        // 3. SISTEMA DE HISTÓRICO & PERSISTÊNCIA
+        // ==========================================
+        
+        // Carrega dados salvos nos inputs (Ex: Colaborador)
+        function loadSavedData() {
+            $('.save-local').each(function() {
+                let $input = $(this);
+                let key = $input.data('key') || $input.attr('id');
+                if(!key) return;
+
+                let savedValue = localStorage.getItem('val_' + key);
+                if(savedValue) {
+                    $input.val(savedValue);
+                }
+            });
+        }
+
+        function setupHistory() {
+            // Remove containers antigos se houver
+            $('.history-container').remove();
+
+            $('.has-history').each(function() {
+                let $input = $(this);
+                let key = $input.data('key') || $input.attr('id');
+                if (!key) return;
+
+                // Cria container do dropdown
+                let $dropdown = $('<div class="history-container"></div>').appendTo($input.parent());
+
+                // Ao focar, mostra histórico
+                $input.on('focus click', function() {
+                    loadHistoryItems(key, $dropdown, $input);
+                });
+
+                // Salvar ao perder foco ou mudar
+                $input.on('change blur', function() {
+                    let val = $(this).val().trim();
+                    if (val) {
+                        saveToHistory(key, val);
+                        if ($(this).hasClass('save-local')) {
+                            localStorage.setItem('val_' + key, val);
+                        }
+                    }
+                });
+            });
+
+            // Fechar histórico ao clicar fora
+            $(document).click(function(e) {
+                if (!$(e.target).closest('.input-group').length) {
+                    $('.history-container').hide();
+                }
+            });
+        }
+
+        function saveToHistory(key, val) {
+            let hist = JSON.parse(localStorage.getItem('hist_' + key) || '[]');
+            // Remove se já existir para colocar no topo
+            hist = hist.filter(item => item !== val);
+            hist.unshift(val);
+            // Limita a 10 itens
+            if (hist.length > 10) hist.pop();
+            localStorage.setItem('hist_' + key, JSON.stringify(hist));
+        }
+
+        function loadHistoryItems(key, $container, $input) {
+            let hist = JSON.parse(localStorage.getItem('hist_' + key) || '[]');
+            $container.empty();
+
+            if (hist.length === 0) {
+                $container.hide();
+                return;
+            }
+
+            hist.forEach(text => {
+                let $item = $(`
+                    <div class="history-item">
+                        <span class="history-text">${text}</span>
+                        <i class="fa-solid fa-trash history-delete" title="Excluir"></i>
+                    </div>
+                `);
+
+                // Evento de Clique no Item (Preencher Input)
+                $item.on('click', function(e) {
+                    if ($(e.target).hasClass('history-delete') || $(e.target).closest('.history-delete').length) {
+                        return;
+                    }
+
+                    $input.val(text);
+                    if ($input.hasClass('save-local')) {
+                        localStorage.setItem('val_' + key, text);
+                    }
+                    $container.hide();
+                });
+
+                // Evento de Excluir Item
+                $item.find('.history-delete').on('click', function(e) {
+                    e.stopPropagation();
+                    removeFromHistory(key, text);
+                    $item.remove();
+                    if ($container.children().length === 0) {
+                        $container.hide();
+                    }
+                });
+
+                $container.append($item);
+            });
+
+            $container.show();
+        }
+
+        function removeFromHistory(key, val) {
+            let hist = JSON.parse(localStorage.getItem('hist_' + key) || '[]');
+            hist = hist.filter(item => item !== val);
+            localStorage.setItem('hist_' + key, JSON.stringify(hist));
+        }
+
+        // ==========================================
+        // 4. FUNÇÃO COPIAR
+        // ==========================================
+        function copyMask(btn) {
+            const card = $(btn).closest('.bg-card'); // Pega o card pai
+            let text = "";
+            let inputs = card.find('input, select, textarea');
+            
+            // Título
+            text += "*" + card.find('h2').text().trim() + "*\n";
+
+            inputs.each(function() {
+                let val = $(this).val();
+                let placeholder = $(this).attr('placeholder');
+                
+                // Ignora campos vazios na cópia
+                if(val && val.trim() !== "") {
+                    text += `${placeholder}: ${val}\n`;
+                }
+            });
+
+            navigator.clipboard.writeText(text).then(() => {
+                // Notificação Lateral
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Máscara copiada!',
+                    showConfirmButton: false,
+                    timer: 1500,
+                    background: '#1e293b',
+                    color: '#fff'
+                });
+
+                // Limpeza de Campos
+                inputs.each(function() {
+                    // NÃO limpa se for save-local (ex: Colaborador, BC)
+                    // NÃO limpa se for data (flatpickr)
+                    if (!$(this).hasClass('save-local') && !$(this).hasClass('flatpickr-range') && !$(this).hasClass('flatpickr-single')) {
+                        $(this).val('');
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>

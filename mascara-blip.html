@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Máscara Blip Pro</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
+  <style>
+    :root {
+      --bg-color: #f4f4f4;
+      --card-bg: #ffffff;
+      --text-color: #333333;
+      --text-color-light: #777777;
+      --border-color: #d3d3d3;
+      --button-bg: #2ecc71;
+      --button-hover-bg: #27ae60;
+      --error-border: #e74c3c;
+      --emerald-blue: #3498db;
+      --emerald-yellow: #f1c40f;
+      --emerald-green: #2ecc71;
+      --emerald-purple: #8e44ad;
+      --emerald-red: #e74c3c;
+      --emerald-pink: #ff69b4;
+      --emerald-blue-rgb: 52, 152, 219;
+      --emerald-yellow-rgb: 241, 196, 15;
+      --emerald-green-rgb: 46, 204, 113;
+      --emerald-purple-rgb: 142, 68, 173;
+      --emerald-red-rgb: 231, 76, 60;
+      --emerald-pink-rgb: 255, 105, 180;
+      --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --card-border: #d3d3d3;
+      --drag-placeholder-bg: rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #1a1a1a;
+      --card-bg: #2c2c2c;
+      --text-color: #e0e0e0;
+      --text-color-light: #a0a0a0;
+      --border-color: #555555;
+      --button-bg: #27ae60;
+      --button-hover-bg: #219653;
+      --error-border: #c0392b;
+      --emerald-blue: #2980b9;
+      --emerald-yellow: #f39c12;
+      --emerald-green: #27ae60;
+      --emerald-purple: #9b59b6;
+      --emerald-red: #c0392b;
+      --emerald-pink: #ff87ce;
+      --emerald-blue-rgb: 41, 128, 185;
+      --emerald-yellow-rgb: 243, 156, 18;
+      --emerald-green-rgb: 39, 174, 96;
+      --emerald-purple-rgb: 155, 89, 182;
+      --emerald-red-rgb: 192, 57, 43;
+      --emerald-pink-rgb: 255, 135, 206;
+      --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      --card-border: #555555;
+      --drag-placeholder-bg: rgba(255, 255, 255, 0.1);
+    }
+    
+    [data-theme="dark"] .mask__input:focus { box-shadow: 0 0 8px rgba(var(--emerald-green-rgb), 0.6); }
+    [data-theme="dark"] .mask--blue .mask__input:focus { box-shadow: 0 0 8px rgba(var(--emerald-blue-rgb), 0.6); }
+    [data-theme="dark"] .mask--yellow .mask__input:focus { box-shadow: 0 0 8px rgba(var(--emerald-yellow-rgb), 0.6); }
+    [data-theme="dark"] .mask--purple .mask__input:focus { box-shadow: 0 0 8px rgba(var(--emerald-purple-rgb), 0.6); }
+    [data-theme="dark"] .mask--red .mask__input:focus { box-shadow: 0 0 8px rgba(var(--emerald-red-rgb), 0.6); }
+    [data-theme="dark"] .mask--pink .mask__input:focus { box-shadow: 0 0 8px rgba(var(--emerald-pink-rgb), 0.6); }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+    body {
+      display: flex; background-color: var(--bg-color); color: var(--text-color);
+      flex-direction: column; align-items: flex-start; min-height: 100vh;
+      padding: 10px 25px; padding-top: 80px; transition: all 0.3s ease; overflow-y: auto;
+    }
+    
+    .top-menu {
+        width: 100%; height: 60px; background-color: var(--card-bg);
+        box-shadow: var(--shadow); position: fixed; top: 0; left: 0;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 25px; z-index: 50; transition: background-color 0.3s ease;
+    }
+    .top-menu__title { font-size: 1.5rem; font-weight: 600; color: var(--text-color); }
+    .top-menu__actions { display: flex; align-items: center; gap: 20px; }
+    .theme-toggle, .settings-icon { cursor: pointer; font-size: 24px; color: var(--text-color); }
+
+    .drag-mode .mask__title, .drag-mode .draggable-item { cursor: grab; }
+    .sortable-ghost { background-color: var(--drag-placeholder-bg); border: 2px dashed var(--border-color); opacity: 0.5; border-radius: 5px; }
+    .sortable-drag { opacity: 0.8; transform: rotate(2deg); box-shadow: 0 8px 16px rgba(0,0,0,0.2); }
+    body.grabbing, body.grabbing * { cursor: grabbing !important; }
+
+    .header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; width: 100%; justify-content: space-between; }
+    .header__actions { display: flex; gap: 15px; }
+
+    .dropdown {
+      position: fixed; top: 65px; right: 10px; background: var(--card-bg);
+      border: 1px solid var(--border-color); border-radius: 5px;
+      box-shadow: var(--shadow); display: none; z-index: 10;
+    }
+    .dropdown ul { list-style: none; padding: 10px; margin: 0; }
+    .dropdown li { padding: 10px; cursor: pointer; border-radius: 4px; }
+    .dropdown li:hover { background: var(--border-color); }
+
+    .modal {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(0.95); background: var(--card-bg);
+      padding: 25px; box-shadow: 0 5px 25px rgba(0,0,0,0.4); border-radius: 8px;
+      display: none; opacity: 0; transition: opacity 0.3s ease, transform 0.3s ease;
+      width: 90%; max-width: 550px; z-index: 100; border: 1px solid var(--border-color);
+    }
+    .modal.show { display: block; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    .modal-close { position: absolute; top: 15px; right: 15px; cursor: pointer; font-size: 20px; font-weight: bold; }
+    .modal-title { text-align: center; margin-bottom: 20px; font-size: 1.4rem; font-weight: 600; }
+    
+    /* Abas do Modal de Registro */
+    .modal-tabs { display: flex; border-bottom: 1px solid var(--border-color); }
+    .modal-tab {
+        flex: 1; padding: 10px 15px; background: transparent; color: var(--text-color-light);
+        border: none; cursor: pointer; text-align: center; transition: all 0.3s;
+        font-weight: 500; font-size: 1rem; position: relative;
+    }
+    .modal-tab:hover { color: var(--text-color); }
+    .modal-tab.active { color: var(--emerald-blue); font-weight: 600; }
+    .modal-tab.active::after {
+        content: ''; position: absolute; bottom: -1px; left: 0; width: 100%;
+        height: 3px; background-color: var(--emerald-blue); border-radius: 3px 3px 0 0;
+    }
+    .modal-content { display: none; padding-top: 25px; }
+    .modal-content.active { display: block; }
+    
+    /* Modal Novo Padrão (Tags) */
+    .tag-input-group { margin-bottom: 15px; }
+    .tag-input-label { display: block; font-size: 0.85rem; margin-bottom: 5px; font-weight: 600; }
+
+    .registro-title { text-align: center; margin-bottom: 15px; font-size: 1.1rem; }
+    .period-select { width: 100%; padding: 8px; margin-bottom: 20px; border: 1px solid var(--border-color); border-radius: 5px; background: var(--bg-color); color: var(--text-color); }
+    
+    .counts { display: flex; flex-direction: column; }
+    .bar-chart {
+      display: flex; width: 100%; justify-content: space-around;
+      align-items: flex-end; height: 150px; padding-bottom: 30px;
+      position: relative; border-bottom: 1px solid var(--border-color);
+      margin-bottom: 15px;
+    }
+    .bar-item { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; position: relative; height: 100%; }
+    .bar { width: 30px; height: 0; transition: height 0.3s ease; border-radius: 4px 4px 0 0; }
+    .bar-value { position: absolute; top: -20px; font-size: 0.9rem; font-weight: 600; color: var(--text-color); }
+    .bar-label { position: absolute; bottom: -25px; font-size: 0.8rem; color: var(--text-color-light); white-space: nowrap; }
+    .total { text-align: right; font-weight: bold; font-size: 1rem; padding-right: 10px; }
+
+    .bar-item.count--green .bar { background-color: var(--emerald-green); }
+    .bar-item.count--blue .bar { background-color: var(--emerald-blue); }
+    .bar-item.count--yellow .bar { background-color: var(--emerald-yellow); }
+    .bar-item.count--purple .bar { background-color: var(--emerald-purple); }
+    .bar-item.count--red .bar { background-color: var(--emerald-red); }
+    .bar-item.count--pink .bar { background-color: var(--emerald-pink); }
+    
+    #contentHistorico { height: 250px; overflow-y: auto; scroll-behavior: smooth; }
+    .historico-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+    .historico-list li {
+        background: var(--bg-color); padding: 12px; border: 1px solid var(--border-color);
+        border-radius: 5px; font-size: 0.85rem; line-height: 1.4;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left-width: 5px;
+    }
+    .historico-list li p { margin: 4px 0 0; }
+    .historico-list li strong { color: var(--text-color); }
+    .historico-list li small { color: var(--text-color-light); }
+    .hist-item__header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+    .historico-item--blue { border-left-color: var(--emerald-blue); }
+    .historico-item--yellow { border-left-color: var(--emerald-yellow); }
+    .historico-item--green { border-left-color: var(--emerald-green); }
+    .historico-item--purple { border-left-color: var(--emerald-purple); }
+    .historico-item--red { border-left-color: var(--emerald-red); }
+    .historico-item--pink { border-left-color: var(--emerald-pink); }
+
+    /* Botões da Header */
+    .add-mask {
+      width: 45px; height: 45px; border-radius: 50%; background-color: var(--button-bg);
+      color: white; border: none; font-size: 24px; cursor: pointer; box-shadow: var(--shadow);
+      transition: all 0.3s ease; display: flex; align-items: center; justify-content: center;
+    }
+    .add-mask:hover { background-color: var(--button-hover-bg); transform: scale(1.1); outline: 2px dashed var(--button-hover-bg); outline-offset: 3px; }
+    
+    .global-message {
+      position: fixed; top: 75px; right: 20px; padding: 12px 25px; text-align: center;
+      font-size: 0.95rem; border-radius: 8px; display: none; font-weight: 600;
+      transition: opacity 0.3s ease, transform 0.3s ease; opacity: 0;
+      color: white; box-shadow: var(--shadow); z-index: 1000;
+    }
+    .global-message.show { display: block; opacity: 1; transform: translateY(5px); }
+    
+    /* Configuração dos Cards (Largura aumentada) */
+    .mask-container { display: flex; flex-direction: row; flex-wrap: wrap; gap: 25px; width: 100%; }
+
+    .mask {
+      width: 330px; /* Largura Aumentada */
+      background-color: var(--card-bg); border: 1px solid var(--card-border);
+      box-shadow: var(--shadow); border-radius: 8px; padding: 20px; margin-bottom: 0;
+      position: relative; transition: all 0.3s ease; opacity: 1; transform: scale(1);
+      display: flex; flex-direction: column;
+    }
+    .mask__content { flex-grow: 1; }
+    .mask--entering { opacity: 0; transform: scale(0.8); }
+    .mask--leaving { opacity: 0; transform: scale(0.8); }
+    .mask--blue { background-color: rgba(52, 152, 219, 0.08); }
+    .mask--yellow { background-color: rgba(241, 196, 15, 0.08); }
+    .mask--green { background-color: rgba(46, 204, 113, 0.08); }
+    .mask--purple { background-color: rgba(142, 68, 173, 0.08); }
+    .mask--red { background-color: rgba(231, 76, 60, 0.08); }
+    .mask--pink { background-color: rgba(255, 105, 180, 0.08); }
+
+    .mask__title {
+      text-align: center; font-size: 1.3rem; font-weight: 600; margin-bottom: 15px;
+      display: flex; align-items: center; justify-content: center; gap: 8px; user-select: none;
+    }
+    .mask__title-icon {
+      width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; font-size: 14px; cursor: pointer; transition: all 0.3s ease;
+    }
+    .mask__title-icon--remove { background-color: var(--error-border); color: white; }
+    .mask__title-icon--remove:hover { transform: scale(1.1); filter: brightness(0.9); }
+
+    .mask__input {
+      width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 5px;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); font-size: 0.95rem; transition: all 0.3s ease;
+      background-color: var(--card-bg); color: var(--text-color);
+    }
+    .draggable-item { margin-bottom: 12px; position: relative; }
+    .mask__input:focus { outline: none; }
+    .mask__input--error { border-color: var(--error-border); box-shadow: 0 0 5px rgba(231, 76, 60, 0.5); }
+    
+    /* Textarea aumentado */
+    textarea.mask__description {
+        resize: vertical;
+        min-height: 110px;
+        line-height: 1.4;
+    }
+
+    .mask__checkbox-container { display: flex; gap: 10px; align-items: center; font-size: 0.9rem; margin-top: 5px; }
+    .mask__checkbox-label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+    .mask__checkbox { width: 16px; height: 16px; cursor: pointer; }
+
+    .mask__button {
+      width: 100%; padding: 12px; background-color: var(--button-bg); color: white; border: none;
+      border-radius: 5px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: auto;
+    }
+    .mask__button:hover { background-color: var(--button-hover-bg); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+    .mask--blue .mask__button { background-color: var(--emerald-blue); }
+    .mask--yellow .mask__button { background-color: var(--emerald-yellow); }
+    .mask--purple .mask__button { background-color: var(--emerald-purple); }
+    .mask--red .mask__button { background-color: var(--emerald-red); }
+    .mask--pink .mask__button { background-color: var(--emerald-pink); }
+
+    /* SISTEMA DE TAGS (Descrições Padrão) */
+    .tags-wrapper {
+        margin-top: 15px; margin-bottom: 10px;
+        background-color: var(--bg-color);
+        padding: 10px; border-radius: 6px; border: 1px dashed var(--border-color);
+    }
+    .tags-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .tags-header span { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--text-color-light); }
+    .btn-add-tag {
+        background-color: var(--emerald-blue); color: white; border: none;
+        padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;
+        cursor: pointer; transition: background 0.2s;
+    }
+    .btn-add-tag:hover { filter: brightness(0.9); }
+    .tags-container { display: flex; flex-wrap: wrap; gap: 6px; }
+    
+    .tag-item {
+        padding: 4px 10px; font-size: 0.75rem; font-weight: 600; color: white;
+        border: none; border-radius: 12px; cursor: pointer;
+        display: flex; align-items: center; gap: 6px;
+        transition: transform 0.1s, opacity 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .tag-item:hover { transform: scale(1.05); }
+    .tag-item .remove-tag {
+        background-color: rgba(0,0,0,0.25); border-radius: 50%;
+        width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;
+        transition: background 0.2s;
+    }
+    .tag-item .remove-tag:hover { background-color: rgba(0,0,0,0.5); }
+    .tags-limit-msg { font-size: 0.75rem; color: var(--emerald-red); margin-top: 5px; font-weight: 600; display: none; }
+
+  </style>
+</head>
+<body>
+    
+  <header class="top-menu">
+      <h1 class="top-menu__title">Mascara Blip Pro</h1>
+      <div class="top-menu__actions">
+          <div class="theme-toggle" id="themeToggle" title="Alternar Tema">🌙</div>
+          <div class="settings-icon" id="settingsIcon" title="Opções">⚙️</div>
+      </div>
+  </header>
+
+  <div class="dropdown" id="dropdown">
+    <ul>
+      <li id="histRegItem">📊 Histórico e Registro</li>
+      <li id="toggleDragDrop">🔄 Ativar Reorganização</li>
+    </ul>
+  </div>
+
+  <div class="modal" id="modal">
+    <span class="modal-close" id="modalClose">×</span>
+    <h2 class="modal-title">Atividade e Histórico</h2>
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tabRegistro">Registro</button>
+      <button class="modal-tab" id="tabHistorico">Histórico</button>
+    </div>
+    
+    <div class="modal-content active" id="contentRegistro">
+      <h3 class="registro-title">Tickets por período</h3>
+      <select class="period-select" id="periodSelect">
+        <option value="day">Hoje</option>
+        <option value="week">Esta Semana</option>
+        <option value="month">Este Mês</option>
+      </select>
+      <div class="counts" id="ticketCounts">
+        <div class="bar-chart">
+          <div class="bar-item count--green">
+            <span class="bar-value" id="countGreen">0</span>
+            <div class="bar" id="barGreen"></div>
+            <span class="bar-label">Verde</span>
+          </div>
+          <div class="bar-item count--blue">
+            <span class="bar-value" id="countBlue">0</span>
+            <div class="bar" id="barBlue"></div>
+            <span class="bar-label">Azul</span>
+          </div>
+          <div class="bar-item count--yellow">
+            <span class="bar-value" id="countYellow">0</span>
+            <div class="bar" id="barYellow"></div>
+            <span class="bar-label">Amarelo</span>
+          </div>
+          <div class="bar-item count--purple">
+            <span class="bar-value" id="countPurple">0</span>
+            <div class="bar" id="barPurple"></div>
+            <span class="bar-label">Roxo</span>
+          </div>
+          <div class="bar-item count--red">
+            <span class="bar-value" id="countRed">0</span>
+            <div class="bar" id="barRed"></div>
+            <span class="bar-label">Vermelho</span>
+          </div>
+          <div class="bar-item count--pink">
+            <span class="bar-value" id="countPink">0</span>
+            <div class="bar" id="barPink"></div>
+            <span class="bar-label">Rosa</span>
+          </div>
+        </div>
+        <p class="total">Total: <span id="countTotal">0</span></p>
+      </div>
+    </div>
+
+    <div class="modal-content" id="contentHistorico">
+      <ul class="historico-list" id="histList"></ul>
+    </div>
+  </div>
+
+  <div class="modal" id="tagModal">
+    <span class="modal-close" id="tagModalClose">×</span>
+    <h2 class="modal-title">Adicionar Descrição Padrão</h2>
+    <div class="modal-content active" style="padding-top: 5px;">
+        <div class="tag-input-group">
+            <label class="tag-input-label">Nome do Botão (Curto)</label>
+            <input type="text" id="tagNameInput" class="mask__input" placeholder="Ex: Sem sinal" maxlength="20">
+        </div>
+        <div class="tag-input-group">
+            <label class="tag-input-label">Descrição Completa</label>
+            <textarea id="tagDescInput" class="mask__input mask__description" placeholder="Texto que será colado automaticamente..."></textarea>
+        </div>
+        <button class="mask__button" id="saveTagBtn">Salvar Padrão</button>
+    </div>
+  </div>
+
+  <div class="header">
+    <div class="header__actions">
+        <button class="add-mask" id="addMask" title="Adicionar Nova Máscara">+</button>
+        </div>
+    <div class="global-message" id="globalMessage"></div>
+  </div>
+
+  <div class="mask-container" id="maskContainer">
+    <section class="mask mask--green" id="mainMask">
+      <h1 class="mask__title">Máscara Blip</h1>
+      <div class="mask__content">
+        <div class="draggable-item">
+            <input type="text" class="mask__input" placeholder="Ticket Blip:">
+        </div>
+        <div class="draggable-item">
+            <input type="text" class="mask__input" placeholder="CPF:">
+        </div>
+        <div class="draggable-item">
+          <div class="mask__checkbox-container">
+            <span>Cliente Atendido:</span>
+            <label class="mask__checkbox-label">
+              <input type="checkbox" class="mask__checkbox" name="attended-main" checked> Sim
+            </label>
+            <label class="mask__checkbox-label">
+              <input type="checkbox" class="mask__checkbox" name="attended-main"> Não
+            </label>
+          </div>
+        </div>
+        
+        <div class="draggable-item tags-wrapper">
+            <div class="tags-header">
+                <span>Atalhos de Descrição</span>
+                <button type="button" class="btn-add-tag" onclick="openTagModal()">+ Padrão</button>
+            </div>
+            <div class="tags-container"></div>
+            <p class="tags-limit-msg">Limite de 10 atalhos atingido.</p>
+        </div>
+
+        <div class="draggable-item">
+            <textarea class="mask__input mask__description" placeholder="Descrição do atendimento"></textarea>
+        </div>
+      </div>
+      <button class="mask__button" id="copyButton">Copiar e Limpar</button>
+    </section>
+  </div>
+
+  <script>
+    // [INÍCIO] Lógica de Efeitos Sonoros com Howler.js
+    const sounds = {
+      toggle: new Howl({ src: ['https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3'], volume: 0.3 }),
+      add: new Howl({ src: ['https://assets.mixkit.co/sfx/preview/mixkit-positive-interface-beep-221.mp3'], volume: 0.4 }),
+      drag: new Howl({ src: ['https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.mp3'], volume: 0.2 }),
+      notification: new Howl({ src: ['https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3'], volume: 0.3 }),
+      modalOpen: new Howl({ src: ['https://assets.mixkit.co/sfx/preview/mixkit-quick-jump-arcade-game-239.mp3'], volume: 0.3 })
+    };
+
+    function playSound(soundName) {
+      try { if (sounds[soundName]) sounds[soundName].play(); } 
+      catch (error) { console.error("Erro ao reproduzir som:", error); }
+    }
+
+    // [INÍCIO] Lógica de Drag and Drop
+    let dragDropEnabled = false;
+    let sortableCards = null;
+    const sortableInputs = [];
+    const maskContainer = document.getElementById('maskContainer');
+
+    function enableDragDrop() {
+        document.body.classList.add('drag-mode');
+        sortableCards = new Sortable(maskContainer, { 
+            animation: 350, 
+            easing: "cubic-bezier(0.65, 0, 0.35, 1)",
+            handle: '.mask__title', 
+            onStart: () => {
+                document.body.classList.add('grabbing');
+                playSound('drag');
+            }, 
+            onEnd: () => document.body.classList.remove('grabbing'), 
+        });
+        document.querySelectorAll('.mask').forEach(card => {
+            const content = card.querySelector('.mask__content');
+            if (content) { sortableInputs.push(new Sortable(content, { animation: 200, draggable: '.draggable-item', onStart: () => document.body.classList.add('grabbing'), onEnd: () => document.body.classList.remove('grabbing'), })); }
+        });
+    }
+
+    function disableDragDrop() {
+        document.body.classList.remove('drag-mode');
+        document.body.classList.remove('grabbing');
+        if (sortableCards) { sortableCards.destroy(); sortableCards = null; }
+        sortableInputs.forEach(instance => instance.destroy());
+        sortableInputs.length = 0;
+    }
+
+    const toggleDragDropBtn = document.getElementById('toggleDragDrop');
+    toggleDragDropBtn.addEventListener('click', () => {
+        dragDropEnabled = !dragDropEnabled;
+        if (dragDropEnabled) {
+            enableDragDrop();
+            toggleDragDropBtn.innerHTML = '✅ Desativar Reorganização';
+            showMessage('Modo de reorganização ATIVADO!', 'info');
+        } else {
+            disableDragDrop();
+            toggleDragDropBtn.innerHTML = '🔄 Ativar Reorganização';
+            showMessage('Modo de reorganização DESATIVADO!', 'info');
+        }
+        dropdown.style.display = 'none';
+    });
+
+    // Toggle de Tema
+    const themeToggle = document.getElementById('themeToggle');
+    themeToggle.addEventListener('click', () => {
+        playSound('toggle');
+        const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+        document.documentElement.setAttribute('data-theme', isDarkMode ? 'light' : 'dark');
+        themeToggle.textContent = isDarkMode ? '🌙' : '☀️';
+    });
+
+    function validateInputs(mask) {
+      let isValid = true;
+      mask.querySelectorAll('.mask__input').forEach(input => {
+        if (!input.value.trim()) { input.classList.add('mask__input--error'); isValid = false; } 
+        else { input.classList.remove('mask__input--error'); }
+      });
+      return isValid;
+    }
+
+    function showMessage(message, type, colorVar = '--emerald-blue') {
+      playSound('notification');
+      const messageDiv = document.getElementById('globalMessage');
+      let icon = 'ℹ️';
+      if (type === 'success') icon = '✅';
+      if (type === 'error') icon = '⚠️';
+      if (type === 'remove') icon = '❌';
+      
+      messageDiv.innerHTML = `${icon} ${message}`;
+      messageDiv.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue(colorVar);
+      messageDiv.classList.add('show');
+      setTimeout(() => { messageDiv.classList.remove('show'); }, 3000);
+    }
+
+    // ==== SISTEMA DE TAGS (Descrições Padrão) ====
+    let savedTags = JSON.parse(localStorage.getItem('blip_tags_pro')) || [];
+    const tagColors = ['#3498db', '#e67e22', '#9b59b6', '#e74c3c', '#2ecc71', '#1abc9c', '#f1c40f', '#e84393', '#34495e', '#d35400'];
+
+    function renderAllTags() {
+        document.querySelectorAll('.tags-container').forEach(container => {
+            container.innerHTML = '';
+            const wrapper = container.closest('.tags-wrapper');
+            const addBtn = wrapper.querySelector('.btn-add-tag');
+            const limitMsg = wrapper.querySelector('.tags-limit-msg');
+
+            savedTags.forEach((tag, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'tag-item';
+                btn.style.backgroundColor = tagColors[index % tagColors.length];
+                btn.innerHTML = `${tag.name} <span class="remove-tag" title="Remover" onclick="deleteTag(event, ${index})">×</span>`;
+                
+                // Ao clicar, adiciona texto no textarea
+                btn.onclick = (e) => {
+                    if(e.target.classList.contains('remove-tag')) return;
+                    const textarea = container.closest('.mask__content').querySelector('.mask__description');
+                    let currentText = textarea.value;
+                    if(currentText && !currentText.endsWith(' ') && !currentText.endsWith('\n')) {
+                        currentText += '\n';
+                    }
+                    textarea.value = currentText + tag.desc;
+                    textarea.focus();
+                    textarea.scrollTop = textarea.scrollHeight;
+                };
+                container.appendChild(btn);
+            });
+
+            if(savedTags.length >= 10) {
+                addBtn.style.display = 'none';
+                limitMsg.style.display = 'block';
+            } else {
+                addBtn.style.display = 'block';
+                limitMsg.style.display = 'none';
+            }
+        });
+    }
+
+    window.openTagModal = function() {
+        playSound('modalOpen');
+        document.getElementById('tagModal').classList.add('show');
+    };
+    
+    document.getElementById('tagModalClose').onclick = () => document.getElementById('tagModal').classList.remove('show');
+
+    document.getElementById('saveTagBtn').onclick = () => {
+        const name = document.getElementById('tagNameInput').value.trim();
+        const desc = document.getElementById('tagDescInput').value.trim();
+        if(!name || !desc) return showMessage('Preencha nome e descrição!', 'error', '--error-border');
+        if(savedTags.length >= 10) return;
+
+        savedTags.push({name, desc});
+        localStorage.setItem('blip_tags_pro', JSON.stringify(savedTags));
+        
+        document.getElementById('tagNameInput').value = '';
+        document.getElementById('tagDescInput').value = '';
+        document.getElementById('tagModal').classList.remove('show');
+        
+        renderAllTags();
+        showMessage('Padrão adicionado com sucesso!', 'success');
+    };
+
+    window.deleteTag = function(e, index) {
+        e.stopPropagation();
+        savedTags.splice(index, 1);
+        localStorage.setItem('blip_tags_pro', JSON.stringify(savedTags));
+        renderAllTags();
+        showMessage('Padrão removido!', 'remove', '--error-border');
+    };
+
+    // Chamada inicial para renderizar tags no mainMask
+    renderAllTags();
+
+    // ==== LÓGICA DE CÓPIA ====
+    function copyAndClear(mask) {
+      const colorClass = mask.className.match(/mask--(\w+)/)[1];
+      const colorVar = `--emerald-${colorClass}`;
+      if (!validateInputs(mask)) { return showMessage("Por favor, preencha todos os campos!", 'error', colorVar); }
+
+      const values = {};
+      mask.querySelectorAll('.draggable-item').forEach(item => {
+          const input = item.querySelector('.mask__input');
+          const checkboxContainer = item.querySelector('.mask__checkbox-container');
+          if (input) {
+              const placeholder = input.placeholder.toLowerCase();
+              if (placeholder.includes('ticket')) values.ticket = input.value;
+              else if (placeholder.includes('cpf')) values.cpf = input.value;
+              else if (input.classList.contains('mask__description')) values.description = input.value;
+          }
+          if (checkboxContainer) {
+              const attendedCheckbox = item.querySelector('.mask__checkbox[name^="attended"]:checked');
+              values.attended = attendedCheckbox ? attendedCheckbox.nextSibling.textContent.trim() : 'Não';
+          }
+      });
+
+      const textToCopy = `Ticket blip: ${values.ticket || ''}\nCPF: ${values.cpf || ''}\nCliente atendido: ${values.attended || 'Não'}\nDescrição atendimento:\n${values.description || ''}`;
+      
+      if (navigator.clipboard) {
+          navigator.clipboard.writeText(textToCopy);
+      } else {
+          const ta = document.createElement("textarea");
+          ta.value = textToCopy;
+          document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
+      }
+      
+      showMessage("Copiado para a área de transferência!", 'success', colorVar);
+
+      // Limpar campos
+      mask.querySelectorAll('.mask__input').forEach(input => (input.value = ''));
+      const checkboxes = mask.querySelectorAll('.mask__checkbox');
+      if(checkboxes.length > 1) { checkboxes[0].checked = true; checkboxes[1].checked = false; }
+
+      // Salvar registro para histórico/gráficos
+      let tickets = JSON.parse(localStorage.getItem('tickets')) || [];
+      tickets.push({
+        timestamp: new Date().toISOString(),
+        color: colorClass.charAt(0).toUpperCase() + colorClass.slice(1),
+        attended: values.attended,
+        ticket: values.ticket,
+        cpf: values.cpf,
+        description: values.description
+      });
+      localStorage.setItem('tickets', JSON.stringify(tickets));
+    }
+
+    // Adicionar Máscara
+    let maskCount = 0;
+    const colors = ['blue', 'yellow', 'green', 'purple', 'red', 'pink'];
+    
+    document.getElementById('addMask').addEventListener('click', () => {
+      playSound('add');
+      const color = colors[maskCount % 6];
+      const newMask = document.createElement('section');
+      const maskId = `mask-${Date.now()}`;
+      newMask.className = `mask mask--${color} mask--entering`;
+      newMask.innerHTML = `
+        <h1 class="mask__title">Máscara Blip <span class="mask__title-icon mask__title-icon--remove">×</span></h1>
+        <div class="mask__content">
+            <div class="draggable-item"><input type="text" class="mask__input" placeholder="Ticket Blip:"></div>
+            <div class="draggable-item"><input type="text" class="mask__input" placeholder="CPF:"></div>
+            <div class="draggable-item">
+                <div class="mask__checkbox-container">
+                    <span>Cliente Atendido:</span>
+                    <label class="mask__checkbox-label"><input type="checkbox" class="mask__checkbox" name="attended-${maskId}" checked> Sim</label>
+                    <label class="mask__checkbox-label"><input type="checkbox" class="mask__checkbox" name="attended-${maskId}"> Não</label>
+                </div>
+            </div>
+            <div class="draggable-item tags-wrapper">
+                <div class="tags-header">
+                    <span>Atalhos de Descrição</span>
+                    <button type="button" class="btn-add-tag" onclick="openTagModal()">+ Padrão</button>
+                </div>
+                <div class="tags-container"></div>
+                <p class="tags-limit-msg">Limite de 10 atalhos atingido.</p>
+            </div>
+            <div class="draggable-item">
+                <textarea class="mask__input mask__description" placeholder="Descrição do atendimento"></textarea>
+            </div>
+        </div>
+        <button class="mask__button">Copiar e Limpar</button>`;
+      
+      maskContainer.appendChild(newMask);
+
+      setTimeout(() => { newMask.classList.remove('mask--entering'); }, 10);
+      showMessage("Nova máscara adicionada com sucesso!", 'success', `--emerald-${color}`);
+
+      if (dragDropEnabled) {
+          const content = newMask.querySelector('.mask__content');
+          if (content) { sortableInputs.push(new Sortable(content, { animation: 200, draggable: '.draggable-item', onStart: () => document.body.classList.add('grabbing'), onEnd: () => document.body.classList.remove('grabbing'), })); }
+      }
+
+      newMask.querySelector('.mask__title-icon--remove').addEventListener('click', () => {
+        newMask.classList.add('mask--leaving');
+        setTimeout(() => { newMask.remove(); showMessage("Máscara removida!", 'remove', `--emerald-${color}`); }, 300);
+      });
+
+      newMask.querySelector('.mask__button').addEventListener('click', () => copyAndClear(newMask));
+      setupCheckboxLogic(newMask);
+      renderAllTags(); // Renderiza as tags na máscara nova
+      maskCount++;
+    });
+
+    // Lógica para os Checkboxes (Exclusivos)
+    function setupCheckboxLogic(container) {
+        const checkboxes = container.querySelectorAll('.mask__checkbox');
+        checkboxes.forEach((checkbox, index, arr) => {
+            checkbox.addEventListener('change', () => {
+                if (checkbox.checked) {
+                    arr.forEach((otherCheckbox, otherIndex) => {
+                        if (index !== otherIndex) { otherCheckbox.checked = false; }
+                    });
+                } else if(!arr[0].checked && !arr[1].checked){
+                    // Força pelo menos um marcado
+                    checkbox.checked = true;
+                }
+            });
+        });
+    }
+    setupCheckboxLogic(document.getElementById('mainMask'));
+    document.getElementById('copyButton').addEventListener('click', () => copyAndClear(document.getElementById('mainMask')));
+
+    // Dropdown e Modal de Histórico
+    const settingsIcon = document.getElementById('settingsIcon');
+    const dropdown = document.getElementById('dropdown');
+    settingsIcon.addEventListener('click', () => { dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block'; });
+    
+    document.getElementById('histRegItem').addEventListener('click', () => {
+      playSound('modalOpen');
+      dropdown.style.display = 'none'; 
+      document.getElementById('modal').classList.add('show');
+      updateCounts(); 
+      updateHistory();
+    });
+    
+    document.getElementById('modalClose').addEventListener('click', () => { document.getElementById('modal').classList.remove('show'); });
+    
+    // Abas do Modal Histórico
+    const tabRegistro = document.getElementById('tabRegistro');
+    const tabHistorico = document.getElementById('tabHistorico');
+    const contentRegistro = document.getElementById('contentRegistro');
+    const contentHistorico = document.getElementById('contentHistorico');
+    
+    tabRegistro.addEventListener('click', () => {
+      tabRegistro.classList.add('active'); tabHistorico.classList.remove('active');
+      contentRegistro.classList.add('active'); contentHistorico.classList.remove('active');
+    });
+    tabHistorico.addEventListener('click', () => {
+      tabHistorico.classList.add('active'); tabRegistro.classList.remove('active');
+      contentHistorico.classList.add('active'); contentRegistro.classList.remove('active');
+    });
+
+    // Lógica Corrigida de Atualização de Gráficos e Histórico
+    const periodSelect = document.getElementById('periodSelect');
+    periodSelect.addEventListener('change', updateCounts);
+
+    function updateCounts() {
+      const tickets = JSON.parse(localStorage.getItem('tickets')) || [];
+      const period = periodSelect.value;
+      const now = new Date();
+      let startTime;
+
+      if (period === 'day') { 
+          startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime(); 
+      } else if (period === 'week') {
+          const weekStart = new Date(now);
+          weekStart.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+          weekStart.setHours(0, 0, 0, 0);
+          startTime = weekStart.getTime();
+      } else if (period === 'month') { 
+          startTime = new Date(now.getFullYear(), now.getMonth(), 1).getTime(); 
+      }
+
+      // Filtra os tickets pela data
+      const filteredTickets = tickets.filter(t => new Date(t.timestamp).getTime() >= startTime);
+      
+      // Conta as cores
+      const counts = { Green: 0, Blue: 0, Yellow: 0, Purple: 0, Red: 0, Pink: 0 };
+      filteredTickets.forEach(t => { if(counts[t.color] !== undefined) counts[t.color]++; });
+      
+      let total = 0;
+      let max = Math.max(...Object.values(counts)) || 1;
+      
+      // Atualiza o CSS das barras e textos
+      for (const [color, count] of Object.entries(counts)) {
+          document.getElementById(`count${color}`).textContent = count;
+          document.getElementById(`bar${color}`).style.height = `${(count / max) * 100}%`;
+          total += count;
+      }
+      document.getElementById('countTotal').textContent = total;
+    }
+
+    function updateHistory() {
+      const list = document.getElementById('histList');
+      list.innerHTML = '';
+      const tickets = JSON.parse(localStorage.getItem('tickets')) || [];
+      
+      if(tickets.length === 0) {
+          list.innerHTML = '<li style="text-align:center; color: var(--text-color-light);">Nenhum registro encontrado.</li>';
+          return;
+      }
+
+      // Mostra os últimos 50 registros
+      tickets.reverse().slice(0, 50).forEach(t => {
+          const li = document.createElement('li');
+          const colorClass = t.color ? t.color.toLowerCase() : 'green';
+          li.className = `historico-item--${colorClass}`;
+          
+          const date = new Date(t.timestamp);
+          const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString().slice(0, 5);
+          
+          li.innerHTML = `
+              <div class="hist-item__header">
+                  <strong>Ticket: ${t.ticket || 'N/A'}</strong>
+                  <small>${formattedDate}</small>
+              </div>
+              <p><strong>CPF:</strong> ${t.cpf || 'N/A'}</p>
+              <p><strong>Atendido:</strong> ${t.attended || 'Não'}</p>
+              <p><strong>Descrição:</strong> ${t.description || 'N/A'}</p>
+          `;
+          list.appendChild(li);
+      });
+    }
+  </script>
+</body>
+</html>
